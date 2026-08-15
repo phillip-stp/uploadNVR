@@ -31,7 +31,7 @@ public:
         queue.pop();
     }
 
-    bool empty() {
+    bool is_empty() {
         std::lock_guard lock(mtx);
         return queue.empty();
     }

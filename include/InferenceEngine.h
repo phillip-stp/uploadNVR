@@ -10,7 +10,7 @@
 
 // TensorFlow Lite Headers
 #include "tensorflow/lite/interpreter.h"
-#include "tensorflow/lite/kernels/register.h"
+#include "tensorflow/lite/kernels/register.h" // Do not remove
 #include "tensorflow/lite/model.h"
 
 class InferenceEngine {

@@ -145,13 +145,10 @@ void CameraNode::run_main_stream() {
         return;
     }
 
-    unsigned char dummy_key[crypto_secretstream_xchacha20poly1305_KEYBYTES];
-    crypto_secretstream_xchacha20poly1305_keygen(dummy_key);
-    Encryptor encryptor(dummy_key);
-
+    // TODO
+    extern unsigned char GLOBAL_TEST_KEY[crypto_secretstream_xchacha20poly1305_KEYBYTES];
+    Encryptor encryptor(GLOBAL_TEST_KEY);
     while (keep_running) {
-
-
         AVPacket* pkt = av_packet_alloc();
 
         if (av_read_frame(in_ctx, pkt) < 0) {
@@ -173,7 +170,7 @@ void CameraNode::run_main_stream() {
             if (!is_writing_to_file && ai_sees_human) {
                 is_writing_to_file = true;
 
-                current_filepath = "storage/cam_" + std::to_string(camera_id) + "_" + std::to_string(current_unix_time) + ".enc";
+                current_filepath = "../storage/cam_" + std::to_string(camera_id) + "_" + std::to_string(current_unix_time) + ".enc";
                 if (encryptor.open(current_filepath)) {
                     is_writing_to_file = true;
                     std::cout << "[INFO] Human detected. Starting recording...\n";
@@ -232,6 +229,7 @@ void CameraNode::run_main_stream() {
     if (is_writing_to_file) {
         if (encryptor.close()) {
             central_upload_queue.push(current_filepath);
+
             std::cerr << "[WARNING] Event saved and queued for upload. However a network drop while recording occurred some footage maybe lost.\n";
         } else {
             std::remove(current_filepath.c_str());

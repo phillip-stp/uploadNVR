@@ -72,6 +72,9 @@ bool Encryptor::push_packet(const uint8_t* data, size_t len) {
         return false;
     }
 
+    const auto chunk_len = static_cast<uint32_t>(ciphertext_len);
+    out_file.write(reinterpret_cast<const char*>(&chunk_len), sizeof(chunk_len));
+
     out_file.write(reinterpret_cast<const char*>(cipher_buffer.data()), static_cast<std::streamsize>(ciphertext_len));
     return out_file.good();
 }
@@ -90,13 +93,15 @@ bool Encryptor::close() {
         std::cerr << "[ERROR] Failed to generate TAG_FINAL seal.\n";
     }
     else {
-        out_file.write(reinterpret_cast<const char*>(ciphertext), static_cast<std::streamsize>(ciphertext_len));
+        const auto chunk_len = static_cast<uint32_t>(ciphertext_len);
+        out_file.write(reinterpret_cast<const char*>(&chunk_len), sizeof(chunk_len));
+        out_file.write(reinterpret_cast<const char*>(ciphertext), chunk_len);
     }
 
     out_file.flush();
 
     // Check if the file is mathematically complete AND safely flushed to the physical disk
-    bool is_valid_file = out_file.good();
+    const bool is_valid_file = out_file.good();
     if (!is_valid_file) {
         std::cerr << "[WARNING] Encrypted file closed with I/O errors. It may be corrupted.\n";
     }

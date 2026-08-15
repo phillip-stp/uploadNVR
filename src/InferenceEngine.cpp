@@ -2,7 +2,7 @@
 #include <iostream>
 
 constexpr int PERSON_CLASS_ID = 0;
-constexpr float CONFIDENCE_THRESHOLD = 0.65f;
+constexpr float CONFIDENCE_THRESHOLD = 0.70f;
 
 InferenceEngine::InferenceEngine(const std::string &model_path,
                                  ThreadQueue<FrameData> &queue,
@@ -63,8 +63,8 @@ void InferenceEngine::stop() {
 
 void InferenceEngine::run_inference_loop() {
     // Locate the memory address where the model expects the image pixels
-    int input_tensor_idx = interpreter->inputs()[0];
-    TfLiteTensor* input_tensor = interpreter->tensor(input_tensor_idx);
+    const int input_tensor_idx = interpreter->inputs()[0];
+    const TfLiteTensor* input_tensor = interpreter->tensor(input_tensor_idx);
 
     while (keep_running) {
         FrameData frame;
@@ -78,16 +78,16 @@ void InferenceEngine::run_inference_loop() {
 
             if (interpreter->Invoke() == kTfLiteOk) {
                 // Parse the results
-                const float* classes = interpreter->typed_output_tensor<float>(1);
-                const float* scores = interpreter->typed_output_tensor<float>(2);
-                const float* count_ptr = interpreter->typed_output_tensor<float>(3);
+                const float* scores  = interpreter->typed_output_tensor<float>(0);
+                const float* count   = interpreter->typed_output_tensor<float>(2);
+                const float* classes = interpreter->typed_output_tensor<float>(3);
 
-                if (classes && scores && count_ptr) {
-                    int num_detections = static_cast<int>(*count_ptr);
+                if (classes && scores && count) {
+                    const int num_detections = static_cast<int>(*count);
                     bool human_found = false;
 
                     for (int i = 0; i < num_detections && !human_found; ++i) {
-                        int class_id = static_cast<int>(classes[i]);
+                        const int class_id = static_cast<int>(classes[i]);
                         float score = scores[i];
 
                         if (class_id == PERSON_CLASS_ID && score >= CONFIDENCE_THRESHOLD) {
@@ -108,4 +108,5 @@ void InferenceEngine::run_inference_loop() {
             }
         }
     }
+
 }
