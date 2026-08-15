@@ -2,7 +2,7 @@
 #include <iostream>
 
 constexpr int PERSON_CLASS_ID = 0;
-constexpr float CONFIDENCE_THRESHOLD = 0.70f;
+constexpr float CONFIDENCE_THRESHOLD = 0.55f;
 
 InferenceEngine::InferenceEngine(const std::string &model_path,
                                  ThreadQueue<FrameData> &queue,

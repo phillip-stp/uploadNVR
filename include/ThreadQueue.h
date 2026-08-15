@@ -9,15 +9,24 @@ class ThreadQueue {
     std::queue<T> queue;
     std::mutex mtx;
     std::condition_variable cv;
+    size_t max_size;
 
 public:
-    ThreadQueue() = default;
+    explicit ThreadQueue(const size_t max_size = 0) : max_size(max_size) {}
     ~ThreadQueue() = default;
     ThreadQueue(const ThreadQueue&) = delete;
     ThreadQueue& operator=(const ThreadQueue&) = delete;
 
+
     void push(T item) {
         std::lock_guard lock(mtx);
+
+        if (max_size > 0) {
+            while (queue.size() >= max_size) {
+                queue.pop();
+            }
+        }
+
         queue.push(std::move(item));
         cv.notify_one();
     }

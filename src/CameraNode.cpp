@@ -31,10 +31,19 @@ namespace {
     }
 
     bool openAndFindStreamInfo(AVFormatContext* &in_ctx, const std::string &url, const uint8_t camera_id) {
-        if (avformat_open_input(&in_ctx, url.c_str(), nullptr, nullptr) != 0) {
+
+        AVDictionary* options = nullptr;
+        av_dict_set(&options, "fflags", "nobuffer", 0);
+        av_dict_set(&options, "flags", "low_delay", 0);
+        av_dict_set(&options, "rtsp_transport", "tcp", 0);
+
+        if (avformat_open_input(&in_ctx, url.c_str(), nullptr, &options) != 0) {
             std::cerr << "[ERROR] Could not open stream for " << static_cast<int>(camera_id) << "\n";
+            av_dict_free(&options);
             return false;
         }
+
+        av_dict_free(&options);
 
         if (avformat_find_stream_info(in_ctx, nullptr) < 0) {
             std::cerr << "[ERROR] Failed to read stream info for camera " << static_cast<int>(camera_id) << "\n";
@@ -131,8 +140,8 @@ void CameraNode::run_main_stream() {
         return;
     }
 
-    const int64_t time_seconds_pts = PRE_ROLL_SECONDS * 90000;
     bool is_writing_to_file = false;
+    bool waiting_for_keyframe = false;
     std::string current_filepath;
 
 
@@ -168,30 +177,47 @@ void CameraNode::run_main_stream() {
 
             // Transition from idle to recording
             if (!is_writing_to_file && ai_sees_human) {
-                is_writing_to_file = true;
-
                 current_filepath = "../storage/cam_" + std::to_string(camera_id) + "_" + std::to_string(current_unix_time) + ".enc";
+
                 if (encryptor.open(current_filepath)) {
                     is_writing_to_file = true;
-                    std::cout << "[INFO] Human detected. Starting recording...\n";
+                    std::cout << "[INFO] Human detected on camera " << static_cast<int>(camera_id) << ". Starting recording...\n";
+
+                    bool found_keyframe = false;
 
                     for (AVPacket* buffered_pkt : ring_buffer) {
-                        encryptor.push_packet(buffered_pkt->data, buffered_pkt->size);
+                        if (!found_keyframe && (buffered_pkt->flags & AV_PKT_FLAG_KEY)) {
+                            found_keyframe = true;
+                        }
+
+                        if (found_keyframe) {
+                            encryptor.push_packet(buffered_pkt->data, buffered_pkt->size);
+                        }
+
                         av_packet_free(&buffered_pkt);
                     }
                     ring_buffer.clear();
+
+                    waiting_for_keyframe = !found_keyframe;
                 }
                 else {
                     std::cerr << "[ERROR] Storage failure. Could not start recording for camera " << static_cast<int>(camera_id) << "\n";
                 }
             }
-
             // Recording
             if (is_writing_to_file) {
-                encryptor.push_packet(pkt->data, pkt->size);
+
+                if (waiting_for_keyframe && (pkt->flags & AV_PKT_FLAG_KEY)) {
+                    waiting_for_keyframe = false;
+                }
+
+                if (!waiting_for_keyframe) {
+                    encryptor.push_packet(pkt->data, pkt->size);
+                }
+
                 av_packet_free(&pkt);
 
-                // if AI no longer sees human go back to idle
+                // If AI no longer sees human, go back to idle
                 if (!ai_sees_human) {
                     is_writing_to_file = false;
                     if (encryptor.close()) {
@@ -208,15 +234,17 @@ void CameraNode::run_main_stream() {
             else {
                 ring_buffer.push_back(pkt);
 
-                int64_t buffer_duration = get_time(ring_buffer.back()) - get_time(ring_buffer.front());
+                AVRational time_base = in_ctx->streams[video_stream_idx.value()]->time_base;
 
-                while (buffer_duration > time_seconds_pts && !ring_buffer.empty()) {
+                double buffer_duration_sec = (get_time(ring_buffer.back()) - get_time(ring_buffer.front())) * av_q2d(time_base);
+
+                while (buffer_duration_sec > PRE_ROLL_SECONDS && !ring_buffer.empty()) {
                     AVPacket* old_pkt = ring_buffer.front();
                     ring_buffer.pop_front();
                     av_packet_free(&old_pkt);
 
                     if (!ring_buffer.empty()) {
-                        buffer_duration = get_time(ring_buffer.back()) - get_time(ring_buffer.front());
+                        buffer_duration_sec = (get_time(ring_buffer.back()) - get_time(ring_buffer.front())) * av_q2d(time_base);
                     }
                 }
             }
