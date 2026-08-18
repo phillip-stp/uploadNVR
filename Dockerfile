@@ -34,10 +34,8 @@ FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install mandatory runtime libraries
-# Added rclone for Google Drive syncing
 RUN apt-get update && apt-get install -y \
-    ffmpeg libsodium23 curl gnupg udev rclone && \
+    ffmpeg libsodium23 curl gnupg udev rclone libyaml-cpp0.7 && \
     echo "deb https://packages.cloud.google.com/apt coral-edgetpu-stable main" | tee /etc/apt/sources.list.d/coral-edgetpu.list && \
     curl -sL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor > /etc/apt/trusted.gpg.d/coral-edgetpu.gpg && \
     apt-get update && \

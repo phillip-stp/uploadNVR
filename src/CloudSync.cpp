@@ -94,7 +94,7 @@ bool CloudSync::perform_maintenance(const std::string& remote_name) {
 
 void CloudSync::run() {
     auto last_maintenance_time = std::chrono::steady_clock::now() - std::chrono::hours(24);
-    constexpr std::string remote_name = "gdrive";
+    const std::string remote_name = "gdrive";
 
     while (keep_running) {
         if (!queue.is_empty()) {
