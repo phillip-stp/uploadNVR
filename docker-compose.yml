@@ -6,6 +6,8 @@ services:
 
     volumes:
       - ./config.yaml:/app/config.yaml
+      - ./models:/app/models:ro
+      - ./storage:/app/storage
       - ~/.config/rclone/rclone.conf:/root/.config/rclone/rclone.conf:ro
 
     devices:
