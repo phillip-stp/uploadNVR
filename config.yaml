@@ -1,0 +1,13 @@
+# 32-byte key represented as a 64-character hex string
+encryption_key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
+model_path: "models/tf2_ssd_mobilenet_v2_coco17_ptq.tflite"
+
+cameras:
+  - id: 1
+    main_rtsp: "rtsp://admin:password@192.168.1.101:554/stream1"
+    sub_rtsp:  "rtsp://admin:password@192.168.1.101:554/stream2"
+
+  - id: 2
+    main_rtsp: "rtsp://admin:password@192.168.1.102:554/stream1"
+    sub_rtsp:  "rtsp://admin:password@192.168.1.102:554/stream2"

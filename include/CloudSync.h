@@ -14,9 +14,15 @@ public:
 
 private:
     void run();
+    static bool upload_and_delete_local(const std::string& file, const std::string& remote_name);
+    bool perform_maintenance(const std::string& remote_name);
+
 
     ThreadQueue<std::string> &queue;
     std::atomic<bool> keep_running;
     std::thread worker_thread;
+    std::vector<std::string> failed_uploads;
+
+
 
 };

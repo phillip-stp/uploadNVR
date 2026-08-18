@@ -13,13 +13,16 @@
 #include "tensorflow/lite/kernels/register.h" // Do not remove
 #include "tensorflow/lite/model.h"
 
+// Edge TPU Header
+#include "edgetpu_c.h"
+
 class InferenceEngine {
 public:
     // Takes the model path, the queue to consume from, and a callback function
     InferenceEngine(const std::string &model_path,
                     ThreadQueue<FrameData> &queue,
                     std::function<void(uint8_t)> trigger_callback);
-    
+
     ~InferenceEngine();
 
     bool start();
@@ -30,10 +33,12 @@ private:
 
     ThreadQueue<FrameData> &ai_queue;
     std::function<void(uint8_t)> on_human_detected;
-    
+
     std::atomic<bool> keep_running;
     std::thread worker_thread;
 
     std::unique_ptr<tflite::FlatBufferModel> model;
     std::unique_ptr<tflite::Interpreter> interpreter;
+
+    TfLiteDelegate* edgetpu_delegate = nullptr;
 };

@@ -24,8 +24,35 @@ InferenceEngine::InferenceEngine(const std::string &model_path,
         std::abort();
     }
 
-    // [EDGE TPU DELEGATE GOES HERE IN THE FUTURE] TODO
-    
+    size_t num_devices;
+    edgetpu_device* devices = edgetpu_list_devices(&num_devices);
+
+    if (num_devices == 0) {
+        std::cerr << "[FATAL ERROR] No Edge TPU devices found. Is the USB connected and passed through to Docker?\n";
+        std::abort();
+    }
+
+    std::cout << "[INFO] Found " << num_devices << " Edge TPU device(s). Initializing: "
+              << devices[0].path << "\n";
+
+    // Create the delegate using the first available TPU device
+    edgetpu_delegate = edgetpu_create_delegate(devices[0].type, devices[0].path, nullptr, 0);
+
+    // Free the device list (prevents memory leak)
+    edgetpu_free_devices(devices);
+
+    if (!edgetpu_delegate) {
+        std::cerr << "[FATAL ERROR] Failed to create Edge TPU delegate.\n";
+        std::abort();
+    }
+
+    // Apply the delegate to the interpreter graph
+    if (interpreter->ModifyGraphWithDelegate(edgetpu_delegate) != kTfLiteOk) {
+        std::cerr << "[FATAL ERROR] Failed to apply Edge TPU delegate to the TFLite graph.\n";
+        std::abort();
+    }
+    // -------------------------------------------------------------------------
+
     if (interpreter->AllocateTensors() != kTfLiteOk) {
         std::cerr << "[FATAL ERROR] Failed to allocate tensors.\n";
         std::abort();
@@ -34,6 +61,14 @@ InferenceEngine::InferenceEngine(const std::string &model_path,
 
 InferenceEngine::~InferenceEngine() {
     stop();
+
+    interpreter.reset();
+
+    if (edgetpu_delegate) {
+        edgetpu_free_delegate(edgetpu_delegate);
+        edgetpu_delegate = nullptr;
+        std::cout << "[SHUTDOWN] Edge TPU delegate released successfully.\n";
+    }
 }
 
 bool InferenceEngine::start() {
@@ -52,10 +87,10 @@ bool InferenceEngine::start() {
 void InferenceEngine::stop() {
     if (!keep_running) return;
     keep_running = false;
-    
+
     // Push an empty frame to wake up the thread so it can exit cleanly
-    ai_queue.push(FrameData{}); 
-    
+    ai_queue.push(FrameData{});
+
     if (worker_thread.joinable()) {
         worker_thread.join();
     }
@@ -68,7 +103,7 @@ void InferenceEngine::run_inference_loop() {
 
     while (keep_running) {
         FrameData frame;
-        
+
         // Wait safely until a camera pushes a frame
         ai_queue.wait_and_pop(frame);
 
@@ -108,5 +143,4 @@ void InferenceEngine::run_inference_loop() {
             }
         }
     }
-
 }

@@ -1,0 +1,14 @@
+services:
+  upload-nvr:
+    build: .
+    container_name: upload_nvr
+    restart: unless-stopped
+
+    volumes:
+      - ./config.yaml:/app/config.yaml
+      - ~/.config/rclone/rclone.conf:/root/.config/rclone/rclone.conf:ro
+
+    devices:
+      - "/dev/bus/usb:/dev/bus/usb"
+
+    privileged: true
