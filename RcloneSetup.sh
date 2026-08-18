@@ -2,13 +2,11 @@
 
 echo "Starting Google Drive Setup for CloudSync..."
 
-# 0. Safety check: Prevent running as root
 if [ "$EUID" -eq 0 ]; then
     echo "[ERROR] Please do not run this script with sudo."
     exit 1
 fi
 
-# 1. Install rclone if missing
 if ! command -v rclone &> /dev/null
 then
     echo "[INFO] rclone not found. Installing rclone..."
@@ -17,12 +15,10 @@ else
     echo "[INFO] rclone is already installed."
 fi
 
-# 2. Check for existing 'gdrive' remote
 if rclone listremotes 2>/dev/null | grep -q "^gdrive:$"; then
     echo "[INFO] A remote named 'gdrive' already exists."
     echo "[INFO] If you want to reconfigure it, run 'rclone config' manually, or delete it first with 'rclone config delete gdrive'."
 else
-    # 3. Create the Google Drive remote with Custom Client ID
     echo "========================================================"
     echo "Google Drive API Setup"
     echo "To avoid rate limits and connection drops, please enter"
@@ -34,18 +30,31 @@ else
     read -p "Client Secret: " GOOGLE_CLIENT_SECRET
 
     echo "[INFO] Configuring Google Drive remote named 'gdrive'..."
-    echo "[INFO] A web browser will now open asking you to log into your Google Account."
+
+    echo "========================================================"
+    echo "HEADLESS AUTHENTICATION REQUIRED"
+    echo "Since this server might not have a web browser, we will"
+    echo "use rclone's headless authentication."
+    echo "========================================================"
 
     if [[ -z "$GOOGLE_CLIENT_ID" || -z "$GOOGLE_CLIENT_SECRET" ]]; then
         echo "[WARNING] No Client ID provided. Using default shared rclone keys."
-        rclone config create gdrive drive scope drive
+        rclone config create gdrive drive scope drive config_is_local false
     else
         echo "[INFO] Using custom Client ID for dedicated bandwidth."
-        rclone config create gdrive drive scope drive client_id "$GOOGLE_CLIENT_ID" client_secret "$GOOGLE_CLIENT_SECRET"
+        rclone config create gdrive drive scope drive client_id "$GOOGLE_CLIENT_ID" client_secret "$GOOGLE_CLIENT_SECRET" config_is_local false
     fi
+
+    echo "========================================================"
+    echo "IMPORTANT NEXT STEPS:"
+    echo "If rclone asks 'Use auto config?', type 'n' and press Enter."
+    echo "It will give you an 'rclone authorize' command."
+    echo "Copy that command, run it in the terminal on your personal laptop (Mac/Windows),"
+    echo "log into Google in your browser, copy the token it gives you,"
+    echo "and paste it back into this terminal."
+    echo "========================================================"
 fi
 
-# 4. Create the base 'cameras' folder and test the connection
 echo "[INFO] Testing connection and ensuring 'cameras' folder exists..."
 
 if rclone mkdir gdrive:cameras; then
